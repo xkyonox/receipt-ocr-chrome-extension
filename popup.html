@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영수증 OCR</title>
+    <style>
+        body {
+            width: 400px;
+            min-height: 500px;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        .upload-area:hover {
+            background-color: #f8f9ff;
+            border-color: #764ba2;
+        }
+        .upload-area.dragover {
+            background-color: #e8ecff;
+            border-color: #667eea;
+        }
+        #fileInput {
+            display: none;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-process {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-process:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        .btn-process:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-export {
+            background: #10b981;
+            color: white;
+        }
+        .btn-export:hover:not(:disabled) {
+            background: #059669;
+        }
+        .btn-export:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-clear {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-clear:hover {
+            background: #dc2626;
+        }
+        .preview-container {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .preview-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: #f9fafb;
+            border-radius: 4px;
+            gap: 10px;
+        }
+        .preview-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .preview-info {
+            flex: 1;
+            font-size: 12px;
+        }
+        .preview-name {
+            font-weight: 600;
+            color: #374151;
+        }
+        .preview-size {
+            color: #6b7280;
+        }
+        .remove-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .remove-btn:hover {
+            background: #dc2626;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .status.success {
+            background-color: #d1fae5;
+            color: #065f46;
+            display: block;
+        }
+        .status.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            display: block;
+        }
+        .status.info {
+            background-color: #dbeafe;
+            color: #1e40af;
+            display: block;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .count-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 영수증 OCR</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <p><strong>클릭하거나 드래그하여 영수증 업로드</strong></p>
+            <p style="font-size: 12px; color: #6b7280;">JPG, PNG 파일 지원 (여러 장 가능)</p>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+
+        <div id="previewContainer" class="preview-container" style="display: none;"></div>
+        <div id="countBadge" style="text-align: center; display: none;">
+            <span class="count-badge">선택된 파일: <span id="fileCount">0</span>개</span>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-process" id="processBtn" disabled>
+                🔍 OCR 처리
+            </button>
+            <button class="btn-export" id="exportBtn" disabled>
+                💾 CSV 저장
+            </button>
+            <button class="btn-clear" id="clearBtn">
+                🗑️ 초기화
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #667eea;">처리 중...</p>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <!-- OCR.space API 사용 (CSP 문제 해결) -->
+    <script src="scripts/popup-ocrspace.js"></script>
+</body>
+</html>
